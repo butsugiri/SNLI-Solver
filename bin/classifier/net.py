@@ -7,13 +7,35 @@ from chainer import reporter
 from classifier.subfuncs import sequence_embed
 
 
-class TextClassification(Chain):
+class BidirectionalLSTM(Chain):
     def __init__(self, n_vocab, dim):
-        super(TextClassification, self).__init__()
+        super(BidirectionalLSTM, self).__init__()
         with self.init_scope():
             self.embed_mat = L.EmbedID(n_vocab, dim)
-            self.liner_1 = L.Linear(dim * 2, dim)
-            self.liner_2 = L.Linear(dim, 3)
+            self.bilstm = L.NStepBiLSTM(1, dim, int(dim / 2), dropout=0.2)
+            self.l1 = L.Linear(dim * 2, dim)
+            self.l2 = L.Linear(dim, 3)
+
+    def __call__(self, x1s, x2s):
+        x1_out = self.encode_sequence(x1s)
+        x2_out = self.encode_sequence(x2s)
+        logit = self.l2(F.relu(self.l1(F.concat([x1_out, x2_out], axis=1))))
+        return logit
+
+    def encode_sequence(self, xs):
+        batch_size = len(xs)
+        xs_embed = sequence_embed(self.embed_mat, xs)
+        hsx, csx, hs = self.bilstm(None, None, xs_embed)
+        return F.swapaxes(hsx, 0, 1).reshape(batch_size, -1)
+
+
+class AveragedEmbedding(Chain):
+    def __init__(self, n_vocab, dim):
+        super(AveragedEmbedding, self).__init__()
+        with self.init_scope():
+            self.embed_mat = L.EmbedID(n_vocab, dim)
+            self.l1 = L.Linear(dim * 2, dim)
+            self.l2 = L.Linear(dim, 3)
 
     def __call__(self, x1s, x2s):
         x1_len = self.xp.array([len(x) for x in x1s], dtype='i')[:, None]
@@ -26,8 +48,21 @@ class TextClassification(Chain):
         x2_sum = F.sum(F.stack(F.pad_sequence(x2_embed, padding=0)), axis=1)
         x2_avg = x2_sum / x2_len
 
-        pred = self.liner_2(F.relu(self.liner_1(F.concat([x1_avg, x2_avg]))))
+        pred = self.l2(F.relu(self.l1(F.concat([x1_avg, x2_avg]))))
         return pred
+
+
+class TextClassification(Chain):
+    def __init__(self, n_vocab, dim):
+        super(TextClassification, self).__init__()
+        with self.init_scope():
+            if True:
+                self.model = BidirectionalLSTM(n_vocab, dim)
+            else:
+                self.model = None
+
+    def __call__(self, x1s, x2s):
+        return self.model(x1s, x2s)
 
     def compute_loss(self, x1s, x2s, t):
         pred = self(x1s, x2s)
@@ -38,7 +73,8 @@ class TextClassification(Chain):
         reporter.report({'acc': acc}, self)
         return loss
 
-    def compute_accuracy(self, pred, target):
+    @staticmethod
+    def compute_accuracy(pred, target):
         pred_label = pred.data.argmax(axis=1)
         acc = int(sum(pred_label == target)) / target.size
         return acc
