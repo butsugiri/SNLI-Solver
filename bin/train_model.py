@@ -82,7 +82,8 @@ def main():
     # param_helper.initialize_params(optimizer, init_type=args.init_type, init_scale=args.init_scale)
 
     train_iter = BucketIterator(dataset=train_data, batch_size=args.batchsize, shuffle=True, debug=False)
-    updater = training.updater.StandardUpdater(train_iter, optimizer, converter=convert, device=args.gpu, loss_func=model.compute_loss)
+    updater = training.updater.StandardUpdater(train_iter, optimizer, converter=convert, device=args.gpu,
+                                               loss_func=model.compute_loss)
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=resource.output_dir)
 
     # if args.resume:
@@ -95,8 +96,9 @@ def main():
     long_term = (1, 'epoch')
 
     dev_iter = BucketIterator(valid_data, args.batchsize, repeat=False)
-    trainer.extend(extensions.Evaluator(dev_iter, model, device=args.gpu, converter=convert, eval_func=model.compute_loss),
-                   trigger=long_term)
+    trainer.extend(
+        extensions.Evaluator(dev_iter, model, device=args.gpu, converter=convert, eval_func=model.compute_loss),
+        trigger=long_term)
     trainer.extend(extensions.ProgressBar(update_interval=1))
     trainer.extend(extensions.LogReport(trigger=short_term, log_name='chainer_report_iteration.log'),
                    trigger=short_term, name='iteration')
@@ -104,6 +106,8 @@ def main():
     entries = ['epoch', 'iteration', 'main/loss', 'validation/main/loss', 'main/acc', 'validation/main/acc']
 
     trainer.extend(extensions.PrintReport(entries=entries, log_report='iteration'), trigger=short_term)
+    trainer.extend(extensions.snapshot_object(model, 'model_epoch_{.updater.epoch}'), trigger=long_term)
+    trainer.extend(extensions.snapshot_object(optimizer, 'optim_epoch_{.updater.epoch}'), trigger=long_term)
 
     logger.info('Start training...')
     trainer.run()

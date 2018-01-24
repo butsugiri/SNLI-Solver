@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
-from classifier.subfuncs import sequence_embed
+from chainer import Chain
 from chainer import reporter
+
+from classifier.subfuncs import sequence_embed
 
 
 class TextClassification(Chain):

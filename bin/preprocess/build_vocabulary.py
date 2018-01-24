@@ -31,7 +31,9 @@ def build_vocabulary(file_path, limit, prefix, suffix, out_dir):
     for token, count in vocab_count.most_common(limit):
         word2id[token]
 
-    sys.stderr.write('Unknown word rate: {:.4f}% (= {} / {})'.format(len(word2id) * 100 / len(vocab_count), len(word2id), len(vocab_count)))
+    sys.stderr.write(
+        'Unknown word rate: {:.4f}% (= {} / {})'.format(len(word2id) * 100 / len(vocab_count), len(word2id),
+                                                        len(vocab_count)))
     file_name = '{}.{}.dict'.format(prefix, suffix)
     destination = os.path.join(out_dir, file_name)
     with open(destination, 'w') as fo:

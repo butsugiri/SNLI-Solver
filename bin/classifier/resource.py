@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
+import json
 import os
+import shutil
 import subprocess
 import sys
+from datetime import datetime
 
+import chainer
 import logzero
 from logzero import logger
-import chainer
-import json
-from datetime import datetime
-import shutil
 
 
 class Resource(object):
@@ -76,7 +76,7 @@ class Resource(object):
             self.logger.warn('CuDNN is not available')
 
     def dump_python_info(self):
-        self.logger.info('Python Version: [{}]'.format(sys.version))
+        self.logger.info('Python Version: [{}]'.format(sys.version.replace('\n', '')))
 
     def save_config_file(self):
         with open(os.path.join(self.output_dir, 'config.json'), 'w') as fo:
@@ -94,4 +94,3 @@ class Resource(object):
         duration = end_time - self.start_time
         logger.info('Duration: {}'.format(str(duration)))
         logger.info('Remember: log is saved in {}'.format(self.output_dir))
-
