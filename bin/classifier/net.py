@@ -7,6 +7,28 @@ from chainer import reporter
 from classifier.subfuncs import sequence_embed
 
 
+class PartialSolver(Chain):
+    def __init__(self, n_vocab, dim):
+        super(PartialSolver, self).__init__()
+        with self.init_scope():
+            self.embed_mat = L.EmbedID(n_vocab, dim)
+            self.bilstm = L.NStepBiLSTM(1, dim, int(dim / 2), dropout=0.2)
+            self.l1 = L.Linear(dim, dim)
+            self.l2 = L.Linear(dim, 3)
+
+    def __call__(self, x1s, x2s):
+        x2_out = self.encode_sequence(x2s)
+        x2_out = F.dropout(x2_out, 0.2)
+        logit = self.l2(F.dropout(F.relu(self.l1(x2_out)), 0.2))
+        return logit
+
+    def encode_sequence(self, xs):
+        batch_size = len(xs)
+        xs_embed = sequence_embed(self.embed_mat, xs)
+        hsx, csx, hs = self.bilstm(None, None, xs_embed)
+        return F.swapaxes(hsx, 0, 1).reshape(batch_size, -1)
+
+
 class BidirectionalLSTM(Chain):
     def __init__(self, n_vocab, dim):
         super(BidirectionalLSTM, self).__init__()
@@ -48,8 +70,8 @@ class AveragedEmbedding(Chain):
         x2_sum = F.sum(F.stack(F.pad_sequence(x2_embed, padding=0)), axis=1)
         x2_avg = x2_sum / x2_len
 
-        pred = self.l2(F.relu(self.l1(F.concat([x1_avg, x2_avg]))))
-        return pred
+        logit = self.l2(F.relu(self.l1(F.concat([x1_avg, x2_avg]))))
+        return logit
 
 
 class TextClassification(Chain):
@@ -57,7 +79,7 @@ class TextClassification(Chain):
         super(TextClassification, self).__init__()
         with self.init_scope():
             if True:
-                self.model = BidirectionalLSTM(n_vocab, dim)
+                self.model = PartialSolver(n_vocab, dim)
             else:
                 self.model = None
 

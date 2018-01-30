@@ -29,8 +29,6 @@ def main():
                         help='Size of hidden dimension')
     parser.add_argument('--embed-dim' '-E', dest='embed_dim', type=int, default=200,
                         help='Size of embed dimension')
-    parser.add_argument('--layer', '-l', type=int, default=2,
-                        help='Number of (encoder & decoder) layers')
     parser.add_argument('--optimizer', '-O', dest='optimizer', type=str, default='SGD',
                         choices=['Adam', 'SGD'], help='Type of optimizer')
 
@@ -92,7 +90,7 @@ def main():
     #     logger.info('Snapshot has been loaded successfully')
 
     # TrainerのExtension追加セクション
-    short_term = (10, 'iteration')
+    short_term = (200, 'iteration')
     long_term = (1, 'epoch')
 
     dev_iter = BucketIterator(valid_data, args.batchsize, repeat=False)
@@ -102,12 +100,14 @@ def main():
     trainer.extend(extensions.ProgressBar(update_interval=1))
     trainer.extend(extensions.LogReport(trigger=short_term, log_name='chainer_report_iteration.log'),
                    trigger=short_term, name='iteration')
-
-    entries = ['epoch', 'iteration', 'main/loss', 'validation/main/loss', 'main/acc', 'validation/main/acc']
-
-    trainer.extend(extensions.PrintReport(entries=entries, log_report='iteration'), trigger=short_term)
+    trainer.extend(extensions.LogReport(trigger=long_term, log_name='chainer_report_epoch.log'), trigger=long_term,
+                   name='epoch')
     trainer.extend(extensions.snapshot_object(model, 'model_epoch_{.updater.epoch}'), trigger=long_term)
     trainer.extend(extensions.snapshot_object(optimizer, 'optim_epoch_{.updater.epoch}'), trigger=long_term)
+
+    entries = ['epoch', 'iteration', 'main/loss', 'validation/main/loss', 'main/acc', 'validation/main/acc']
+    trainer.extend(extensions.PrintReport(entries=entries, log_report='iteration'), trigger=short_term)
+    trainer.extend(extensions.PrintReport(entries=entries, log_report='epoch'), trigger=long_term)
 
     logger.info('Start training...')
     trainer.run()
