@@ -7,18 +7,18 @@ from chainer.training import extensions
 
 from classifier.data_processor import DataProcessor
 from classifier.iterator import BucketIterator
-from classifier.net import TextClassification
 from classifier.net import EnhancedSequentialInferenceModel
 from classifier.resource import Resource
 from classifier.subfuncs import convert
 from classifier.subfuncs import set_random_seed
+from classifier.params import ParameterHelper
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Attention sequence to sequence model (Training Script)',
+    parser = argparse.ArgumentParser(description='ESIM',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--batchsize', '-b', type=int, default=64,
+    parser.add_argument('--batchsize', '-b', type=int, default=32,
                         help='Number of sentences in each mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=13,
                         help='Number of sweeps over the dataset to train')
@@ -30,10 +30,11 @@ def main():
                         help='Size of hidden dimension')
     parser.add_argument('--embed-dim' '-E', dest='embed_dim', type=int, default=200,
                         help='Size of embed dimension')
-    parser.add_argument('--optimizer', '-O', dest='optimizer', type=str, default='SGD',
+    parser.add_argument('--optimizer', '-O', dest='optimizer', type=str, default='Adam',
                         choices=['Adam', 'SGD'], help='Type of optimizer')
     parser.add_argument('--model-type', dest='model_type', type=str, default='BiLSTM',
                         choices=['BiLSTM', 'Partial', 'Embed'], help='Model Type')
+    parser.add_argument('--dropout', dest='dropout_rate', type=float, default=0.5, help='dropout rate')
 
     # Arguments for the dataset / vocabulary path
     parser.add_argument('--vocab', dest='vocab_path', required=True,
@@ -42,6 +43,8 @@ def main():
                         help='Path to the train data')
     parser.add_argument('--dev-data-file', dest='dev_data_path', required=True,
                         help='Path to the development data')
+    parser.add_argument('--glove-path', dest='glove_path', default='',
+                        help='Path to the pretrained word vector data')
 
     parser.add_argument('--seed', default=0, type=int, help='Seed for Random Module')
 
@@ -68,23 +71,25 @@ def main():
     model = EnhancedSequentialInferenceModel(
         n_vocab=len(dataset.vocab),
         embed_dim=args.embed_dim,
-        hidden_dim=args.hidden_dim
+        hidden_dim=args.hidden_dim,
+        dropout_rate=args.dropout_rate
         )
-
-    # Send model to GPU (according to the arguments)
-    if args.gpu >= 0:
-        model.to_gpu(args.gpu)
 
     if args.optimizer == 'Adam':
         optimizer = chainer.optimizers.Adam()
     else:
-        optimizer = chainer.optimizers.SGD(lr=1.0)
-
+        optimizer = chainer.optimizers.SGD()
     optimizer.setup(model)
     logger.info('Optimizer is set to [{}]'.format(args.optimizer))
 
-    # param_helper = ParameterHelper(log_name=log_name)
+    param_helper = ParameterHelper(resource.log_name)
     # param_helper.initialize_params(optimizer, init_type=args.init_type, init_scale=args.init_scale)
+    if args.glove_path != '':
+        param_helper.load_glove_vector(args.glove_path, dataset.vocab, embed_mat=model.input_encoding.embed_mat)
+
+    # Send model to GPU (according to the arguments)
+    if args.gpu >= 0:
+        model.to_gpu(args.gpu)
 
     train_iter = BucketIterator(dataset=train_data, batch_size=args.batchsize, shuffle=True, debug=False)
     updater = training.updater.StandardUpdater(train_iter, optimizer, converter=convert, device=args.gpu,

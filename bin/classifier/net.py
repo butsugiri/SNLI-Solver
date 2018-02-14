@@ -13,10 +13,10 @@ def sequence_embed(embed, xs):
     :param xs: [[x1, x2,..., xn]] * batch_size
     :return: [[ex1, ex2, ex3,..., exn]] * batch_size
     """
-    x_len = [len(x) for x in xs]
-    x_section = np.cumsum(x_len[:-1])
-    ex_original = embed(F.concat(xs, axis=0))
-    exs = F.split_axis(ex_original, x_section, 0)
+    xs_len = [len(x) for x in xs]
+    x_section = np.cumsum(xs_len[:-1])
+    ex = embed(F.concat(xs, axis=0))
+    exs = F.split_axis(ex, x_section, 0)
     return exs
 
 
@@ -24,7 +24,7 @@ def calc_vector_interactions(xs, xs_dash):
     """
     for given two vectors, calculate:
     1. Subtraction
-    2. Elementwise multiplication
+    2. Element-wise multiplication
     and then concatenate them
     """
     return F.concat([xs, xs_dash, xs - xs_dash, xs * xs_dash], axis=2)
@@ -54,7 +54,6 @@ class InputEncodingLayer(Chain):
         return h1s, h2s
 
     def encode_sequence(self, xs, encoder):
-        # batch_size = len(xs)
         xs_embed = sequence_embed(self.embed_mat, xs)
         _, _, hs = encoder(None, None, xs_embed)
         return hs
@@ -67,6 +66,7 @@ class LocalInferenceLayer(Chain):
             pass  # 特に管理するべきパラメータは存在しない
 
     def __call__(self, h1s, h2s):
+        # 散らかってるが，とりあえずコレで
         seq_len, _ = h1s[0].shape
         h2s_len = [x.shape[0] for x in h2s]
 
@@ -93,14 +93,15 @@ class LocalInferenceLayer(Chain):
 
 
 class OutputLayer(Chain):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim, dropout_rate):
         super(OutputLayer, self).__init__()
+        self.dropout_rate = dropout_rate
         with self.init_scope():
             self.l1 = L.Linear(in_dim, in_dim)
             self.l2 = L.Linear(in_dim, out_dim)
 
     def __call__(self, h):
-        return self.l2(F.tanh(self.l1(h)))
+        return self.l2(F.dropout(F.tanh(self.l1(F.dropout(h, self.dropout_rate))), self.dropout_rate))
 
 
 class InferenceCompositionLayer(Chain):
@@ -129,13 +130,13 @@ class EnhancedSequentialInferenceModel(Chain):
     """
     Implementation of ESIM: http://www.aclweb.org/anthology/P17-1152
     """
-    def __init__(self, n_vocab, embed_dim, hidden_dim):
+    def __init__(self, n_vocab, embed_dim, hidden_dim, dropout_rate):
         super(EnhancedSequentialInferenceModel, self).__init__()
         with self.init_scope():
             self.input_encoding = InputEncodingLayer(n_vocab, embed_dim, hidden_dim)
             self.local_inference = LocalInferenceLayer()
             self.inference_composition = InferenceCompositionLayer(hidden_dim * 4)
-            self.output = OutputLayer(hidden_dim * 4, out_dim=3)
+            self.output = OutputLayer(hidden_dim * 4, out_dim=3, dropout_rate=dropout_rate)
 
     def __call__(self, x1s, x2s):
         h1s, h2s = self.input_encoding(x1s, x2s)
