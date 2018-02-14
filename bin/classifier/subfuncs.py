@@ -3,7 +3,6 @@
 import random
 
 import chainer
-import chainer.functions as F
 import numpy as np
 from chainer import cuda
 from chainer.dataset import to_device
@@ -18,20 +17,6 @@ def set_random_seed(seed, gpu):
     if gpu >= 0:
         chainer.cuda.get_device_from_id(gpu).use()
         chainer.cuda.cupy.random.seed(seed)
-
-
-def sequence_embed(embed, xs):
-    """
-    Embedding層を効率よく潜らせるための関数
-    :param embed: L.EmbedID
-    :param xs: [[x1, x2,..., xn]] * batch_size
-    :return: [[ex1, ex2, ex3,..., exn]] * batch_size
-    """
-    x_len = [len(x) for x in xs]
-    x_section = np.cumsum(x_len[:-1])
-    ex_original = embed(F.concat(xs, axis=0))
-    exs = F.split_axis(ex_original, x_section, 0)
-    return exs
 
 
 def convert(batch, gpu):

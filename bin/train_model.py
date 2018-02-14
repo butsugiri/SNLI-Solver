@@ -8,6 +8,7 @@ from chainer.training import extensions
 from classifier.data_processor import DataProcessor
 from classifier.iterator import BucketIterator
 from classifier.net import TextClassification
+from classifier.net import EnhancedSequentialInferenceModel
 from classifier.resource import Resource
 from classifier.subfuncs import convert
 from classifier.subfuncs import set_random_seed
@@ -31,6 +32,8 @@ def main():
                         help='Size of embed dimension')
     parser.add_argument('--optimizer', '-O', dest='optimizer', type=str, default='SGD',
                         choices=['Adam', 'SGD'], help='Type of optimizer')
+    parser.add_argument('--model-type', dest='model_type', type=str, default='BiLSTM',
+                        choices=['BiLSTM', 'Partial', 'Embed'], help='Model Type')
 
     # Arguments for the dataset / vocabulary path
     parser.add_argument('--vocab', dest='vocab_path', required=True,
@@ -61,8 +64,12 @@ def main():
     dataset = DataProcessor(resource.log_name)
     dataset.load_vocab_from_path(args.vocab_path)
     train_data = dataset.load_data_from_path(args.train_data_path, 'train')
-    valid_data = dataset.load_data_from_path(args.train_data_path, 'dev')
-    model = TextClassification(n_vocab=len(dataset.vocab), dim=args.embed_dim)
+    valid_data = dataset.load_data_from_path(args.dev_data_path, 'dev')
+    model = EnhancedSequentialInferenceModel(
+        n_vocab=len(dataset.vocab),
+        embed_dim=args.embed_dim,
+        hidden_dim=args.hidden_dim
+        )
 
     # Send model to GPU (according to the arguments)
     if args.gpu >= 0:
