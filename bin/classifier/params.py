@@ -54,6 +54,7 @@ class ParameterHelper(object):
             for line in fi:
                 word, *vec = line.strip().split()
                 if word in vocab:
+                    assert len(vec) == embed_array.shape[1]
                     embed_array[vocab[word]] = np.array(vec, dtype='f')
         embed_mat.W.data = embed_array
 

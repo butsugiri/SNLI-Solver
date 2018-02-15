@@ -60,7 +60,8 @@ class InputEncodingLayer(Chain):
 
 
 class LocalInferenceLayer(Chain):
-    def __init__(self):
+    def __init__(self, drop_local_inference=False):
+        self.drop_local_inference = drop_local_inference
         super(LocalInferenceLayer, self).__init__()
         with self.init_scope():
             pass  # 特に管理するべきパラメータは存在しない
@@ -79,17 +80,25 @@ class LocalInferenceLayer(Chain):
         masked_attn_mat = F.where(h2s_mask, raw_attn_mat, minfs)
 
         # h1s 方向に重み付き和を計算
+        # ここを正規化してもいいはず
         h1s_attn = F.batch_matmul(F.softmax(masked_attn_mat, axis=2), h2s_stack)
-        h1s = F.separate(calc_vector_interactions(h1s_stack, h1s_attn), axis=0)
+        m1 = calc_vector_interactions(h1s_stack, h1s_attn)
+        if self.drop_local_inference:
+            m1 = F.dropout(m1, 0.5)
+        m1s = F.separate(m1, axis=0)
 
         # h2s 方向に重み付き和を計算
+        # ここを正規化してもいいはず
         h2s_attn_mat = F.softmax(masked_attn_mat, axis=1)
         # こっちの方向だと，softmax計算時にnanが生まれるので，それを0埋め
         # 0埋めしないとnanと実数との積が発生し，全体の計算が死んでしまう
         masked_h2s_attn_mat = F.where(h2s_mask, h2s_attn_mat, self.xp.zeros(h2s_mask.shape, dtype='f'))
         h2s_attn = F.swapaxes(F.batch_matmul(F.swapaxes(h1s_stack, 1, 2), masked_h2s_attn_mat), 1, 2)
-        h2s = [h[:l, :] for h, l in zip(F.separate(calc_vector_interactions(h2s_stack, h2s_attn), axis=0), h2s_len)]
-        return h1s, h2s
+        m2 = calc_vector_interactions(h2s_stack, h2s_attn)
+        if self.drop_local_inference:
+            m2 = F.dropout(m2, 0.5)
+        m2s = [h[:l, :] for h, l in zip(F.separate(m2, axis=0), h2s_len)]
+        return m1s, m2s
 
 
 class OutputLayer(Chain):
@@ -130,11 +139,11 @@ class EnhancedSequentialInferenceModel(Chain):
     """
     Implementation of ESIM: http://www.aclweb.org/anthology/P17-1152
     """
-    def __init__(self, n_vocab, embed_dim, hidden_dim, dropout_rate):
+    def __init__(self, n_vocab, embed_dim, hidden_dim, dropout_rate, drop_local_inference=0):
         super(EnhancedSequentialInferenceModel, self).__init__()
         with self.init_scope():
             self.input_encoding = InputEncodingLayer(n_vocab, embed_dim, hidden_dim)
-            self.local_inference = LocalInferenceLayer()
+            self.local_inference = LocalInferenceLayer(bool(drop_local_inference))
             self.inference_composition = InferenceCompositionLayer(hidden_dim * 4)
             self.output = OutputLayer(hidden_dim * 4, out_dim=3, dropout_rate=dropout_rate)
 

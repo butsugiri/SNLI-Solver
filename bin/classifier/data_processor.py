@@ -5,6 +5,7 @@ import json
 import logzero
 import numpy as np
 from logzero import logger
+import os
 
 from classifier import constants
 
@@ -27,7 +28,7 @@ class DataProcessor(object):
         # Vocabulary must be loaded in advance
         # (Otherwise the data cannot be converted to indices)
         assert self.vocab is not None
-        self.logger.info('Loading {} data from {}'.format(data_type, data_path))
+        self.logger.info('Loading {} data from {}'.format(data_type, os.path.abspath(data_path)))
 
         dataset = self._make_dataset(data_path, self.vocab)
         self.logger.info('{} data is successfully loaded'.format(data_type))

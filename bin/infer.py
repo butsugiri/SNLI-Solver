@@ -6,13 +6,13 @@ import numpy as np
 
 from classifier.data_processor import DataProcessor
 from classifier.iterator import BucketIterator
-from classifier.net import TextClassification
+from classifier.net import EnhancedSequentialInferenceModel
 from classifier.resource import Resource
 from classifier.subfuncs import convert
 
 
 def main():
-    parser = argparse.ArgumentParser(description='SNLI Solver',
+    parser = argparse.ArgumentParser(description='ESIM',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--batchsize', '-b', type=int, default=32, help='Number of Sentences in Each Mini-Batch')
     parser.add_argument('--gpu', '-g', type=int, default=-1, help='GPU ID (Negative Value Indicates CPU)')
@@ -34,7 +34,12 @@ def main():
     dataset.load_vocab_from_path(vocab_path)
     test_data = dataset.load_data_from_path(args.input_file_path, 'test')
     test_iter = BucketIterator(dataset=test_data, batch_size=args.batchsize, shuffle=False, debug=False, repeat=False)
-    model = TextClassification(n_vocab=len(dataset.vocab), dim=resource.config['embed_dim'])
+    model = EnhancedSequentialInferenceModel(
+        n_vocab=len(dataset.vocab),
+        embed_dim=resource.config['embed_dim'],
+        hidden_dim=resource.config['hidden_dim'],
+        dropout_rate=0.0
+    )
 
     chainer.serializers.load_npz(model_path, model)
 
@@ -44,15 +49,16 @@ def main():
 
     target_list = []
     pred_list = []
-    for batch in test_iter:
-        conv_batch = convert(batch, args.gpu)
-        x1s = conv_batch['x1s']
-        x2s = conv_batch['x2s']
-        target = conv_batch['t'].tolist()
-        pred = model(x1s, x2s).data.argmax(axis=1).tolist()
+    with chainer.using_config('train', False):
+        for batch in test_iter:
+            conv_batch = convert(batch, args.gpu)
+            x1s = conv_batch['x1s']
+            x2s = conv_batch['x2s']
+            target = conv_batch['t'].tolist()
+            pred = model(x1s, x2s).data.argmax(axis=1).tolist()
 
-        target_list += target
-        pred_list += pred
+            target_list += target
+            pred_list += pred
 
     acc = np.sum(np.array(target_list) == np.array(pred_list)) / len(target_list)
     print(acc)

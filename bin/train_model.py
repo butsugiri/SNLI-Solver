@@ -8,10 +8,10 @@ from chainer.training import extensions
 from classifier.data_processor import DataProcessor
 from classifier.iterator import BucketIterator
 from classifier.net import EnhancedSequentialInferenceModel
+from classifier.params import ParameterHelper
 from classifier.resource import Resource
 from classifier.subfuncs import convert
 from classifier.subfuncs import set_random_seed
-from classifier.params import ParameterHelper
 
 
 def main():
@@ -26,15 +26,19 @@ def main():
                         help='GPU ID (negative value indicates CPU)')
     parser.add_argument('--resume', '-r', default='',
                         help='Resume the training from snapshot')
-    parser.add_argument('--hidden-dim' '-H', dest='hidden_dim', type=int, default=200,
+    parser.add_argument('--hidden-dim' '-H', dest='hidden_dim', type=int, default=300,
                         help='Size of hidden dimension')
-    parser.add_argument('--embed-dim' '-E', dest='embed_dim', type=int, default=200,
+    parser.add_argument('--embed-dim' '-E', dest='embed_dim', type=int, default=300,
                         help='Size of embed dimension')
     parser.add_argument('--optimizer', '-O', dest='optimizer', type=str, default='Adam',
                         choices=['Adam', 'SGD'], help='Type of optimizer')
     parser.add_argument('--model-type', dest='model_type', type=str, default='BiLSTM',
                         choices=['BiLSTM', 'Partial', 'Embed'], help='Model Type')
     parser.add_argument('--dropout', dest='dropout_rate', type=float, default=0.5, help='dropout rate')
+    parser.add_argument('--drop-local-inference', dest='drop_local_inference', type=int, choices=[0, 1], default=0,
+                        help='Use dropout for the input of local inference layer')
+    parser.add_argument('--learning-rate', '--lr', dest='learning_rate', type=float, default=0.0004,
+                        help='learning rate')
 
     # Arguments for the dataset / vocabulary path
     parser.add_argument('--vocab', dest='vocab_path', required=True,
@@ -72,13 +76,14 @@ def main():
         n_vocab=len(dataset.vocab),
         embed_dim=args.embed_dim,
         hidden_dim=args.hidden_dim,
-        dropout_rate=args.dropout_rate
-        )
+        dropout_rate=args.dropout_rate,
+        drop_local_inference=args.drop_local_inference
+    )
 
     if args.optimizer == 'Adam':
-        optimizer = chainer.optimizers.Adam()
+        optimizer = chainer.optimizers.Adam(alpha=args.learning_rate)
     else:
-        optimizer = chainer.optimizers.SGD()
+        optimizer = chainer.optimizers.SGD(lr=args.learning_rate)
     optimizer.setup(model)
     logger.info('Optimizer is set to [{}]'.format(args.optimizer))
 
