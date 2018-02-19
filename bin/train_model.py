@@ -39,6 +39,10 @@ def main():
                         help='Use dropout for the input of local inference layer')
     parser.add_argument('--learning-rate', '--lr', dest='learning_rate', type=float, default=0.0004,
                         help='learning rate')
+    parser.add_argument('--initializer-scale', dest='init_scale', default=0.1, type=float,
+                        help='Scaling factor for parameter initializer')
+    parser.add_argument('--initializer-type', dest='init_type', default='uniform',  # same as OpenNMT
+                        help='select initializer [string] default=uniform option:chainer_default, normal')
 
     # Arguments for the dataset / vocabulary path
     parser.add_argument('--vocab', dest='vocab_path', required=True,
@@ -88,7 +92,7 @@ def main():
     logger.info('Optimizer is set to [{}]'.format(args.optimizer))
 
     param_helper = ParameterHelper(resource.log_name)
-    # param_helper.initialize_params(optimizer, init_type=args.init_type, init_scale=args.init_scale)
+    param_helper.initialize_params(optimizer, init_type=args.init_type, init_scale=args.init_scale)
     if args.glove_path != '':
         param_helper.load_glove_vector(args.glove_path, dataset.vocab, embed_mat=model.input_encoding.embed_mat)
 

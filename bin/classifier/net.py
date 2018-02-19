@@ -45,8 +45,8 @@ class InputEncodingLayer(Chain):
         super(InputEncodingLayer, self).__init__()
         with self.init_scope():
             self.embed_mat = L.EmbedID(n_vocab, embed_dim)
-            self.hypo_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 2), dropout=0.0)
-            self.premise_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 2), dropout=0.0)
+            self.hypo_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 2), dropout=0.3)
+            self.premise_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 2), dropout=0.3)
 
     def __call__(self, x1s, x2s):
         h1s = self.encode_sequence(x1s, self.hypo_encoder)
@@ -117,8 +117,8 @@ class InferenceCompositionLayer(Chain):
     def __init__(self, hidden_dim):
         super(InferenceCompositionLayer, self).__init__()
         with self.init_scope():
-            self.hypo_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 8), dropout=0.0)
-            self.premise_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 8), dropout=0.0)
+            self.hypo_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 8), dropout=0.3)
+            self.premise_encoder = L.NStepBiLSTM(1, hidden_dim, int(hidden_dim / 8), dropout=0.3)
 
     def __call__(self, m1s, m2s):
         m1s_len = self.xp.array([m.shape[0] for m in m1s], dtype='f')  # 本来なら必要ないが

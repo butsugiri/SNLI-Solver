@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
+import os
 
 import chainer
 import numpy as np
@@ -41,6 +42,7 @@ def main():
         dropout_rate=0.0
     )
 
+    logger.info('Loading the model from [{}]'.format(os.path.abspath(model_path)))
     chainer.serializers.load_npz(model_path, model)
 
     if args.gpu >= 0:
@@ -49,7 +51,7 @@ def main():
 
     target_list = []
     pred_list = []
-    with chainer.using_config('train', False):
+    with chainer.using_config('train', False), chainer.no_backprop_mode():
         for batch in test_iter:
             conv_batch = convert(batch, args.gpu)
             x1s = conv_batch['x1s']
