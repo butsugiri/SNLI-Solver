@@ -17,7 +17,7 @@ def build_vocabulary(file_path, limit, prefix, suffix, out_dir):
     with open(file_path, 'r') as fi:
         for line in fi:
             data = json.loads(line.strip())
-            tokens = [x.lower() for x in data['sent1_tokens']] + [x.lower() for x in data['sent2_tokens']]
+            tokens = [x for x in data['sent1_tokens']] + [x for x in data['sent2_tokens']]
             for token in tokens:
                 vocab_count[token] += 1
 
@@ -49,7 +49,6 @@ if __name__ == "__main__":
                         help='prefix')
     parser.add_argument('--suffix', dest='suffix', default='snli', type=str,
                         help='suffix')
-    parser.add_argument('--lower', dest='lower', default=0, type=int, choices=[0, 1], help='lower sequence')
     parser.add_argument('--input', dest='input', required=True, type=str, help='input json')
     parser.add_argument('--out', dest='out', default='../../work/vocab', type=str, help='output dir')
     args = parser.parse_args()

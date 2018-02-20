@@ -63,8 +63,8 @@ class DataProcessor(object):
         with open(file_path, 'r') as input_data:
             for line in input_data:
                 data = json.loads(line.strip())
-                sent1_tokens = list(map(str.lower, data['sent1_tokens']))
-                sent2_tokens = list(map(str.lower, data['sent2_tokens']))
+                sent1_tokens = data['sent1_tokens']
+                sent2_tokens = data['sent2_tokens']
                 # TODO: posも読み込めるように
                 sent1_pos = data['sent1_pos']
                 sent2_pos = data['sent2_pos']
